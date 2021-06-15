@@ -6,6 +6,16 @@
 //
 
 import Foundation
+import CoreML
+import Vision
+
+struct Results: Identifiable {
+
+  var imageLabel: String
+  var confidence: Double
+  var id = UUID()
+
+}
 
 class Animal {
   // Get the Image URL
@@ -14,9 +24,15 @@ class Animal {
   // Get Image Data
   var imageData: Data?
 
+  // Classified Results
+  var results: [Results]
+
+  let modelFile = try! MobileNetV2(configuration: MLModelConfiguration())
+
   init() {
     self.imageURL = ""
     self.imageData = nil
+    self.results = []
   }
 
   init?(json: [String: Any]) {
@@ -29,6 +45,7 @@ class Animal {
     // Set The Animal Properties
     self.imageURL = imageURL
     self.imageData = nil
+    self.results = []
 
     // Download the Image Data
       getImage()
@@ -57,12 +74,51 @@ class Animal {
 
       if error == nil && data != nil {
         self.imageData = data
+        self.classifyAnimal()
       }
 
     }
 
     // Start The dataTask
     dataTask.resume()
+  }
+
+  func classifyAnimal() {
+
+    // Get a refrence to the Model
+
+    let model = try! VNCoreMLModel(for: modelFile.model)
+
+    // Create an ImageHandler
+
+    let handler = try! VNImageRequestHandler(data: imageData!)
+
+    // Create a request to the model
+
+    let request = try! VNCoreMLRequest(model: model) { (request, error) in
+
+      guard let results = request.results as? [VNClassificationObservation] else {
+        print("Couldn't find the animal")
+        return
+      }
+
+      // Update Results
+
+      for classification in results {
+        var identifier = classification.identifier
+        identifier = identifier.prefix(1).capitalized + identifier.dropFirst()
+        self.results.append(Results(imageLabel: identifier, confidence: Double(classification.confidence)))
+      }
+
+    }
+
+    // Excute The Request
+    do {
+      try handler.perform([request])
+    }
+    catch {
+      print("Invalid Image")
+    }
   }
 
 }

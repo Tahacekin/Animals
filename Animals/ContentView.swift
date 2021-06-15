@@ -35,6 +35,17 @@ struct ContentView: View {
               .bold()
           }).padding()
         }
+
+        List(viewModel.animal.results) { result in
+
+          Text(result.imageLabel)
+          Spacer()
+          Text(
+            String(format: "%.2f%%", result.confidence * 100)
+          )
+
+        }
+
       }.onAppear(perform: viewModel.getAnimal)
       .opacity(viewModel.animal.imageData == nil ? 0 : 1)
     }
